@@ -12,7 +12,7 @@ def run_weather_agent(user_input):
         temperature=0,
         model="qwen3.5-plus",   # 有效模型名
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"  # 关键修复
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"  
     )
 
     agent = create_agent(model=llm, tools=tools, system_prompt="你是一个智能助手，可以查询天气、搜索信息并提供建议。")

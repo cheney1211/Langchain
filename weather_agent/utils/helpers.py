@@ -1,14 +1,24 @@
 import requests
 
-def get_current_location():
+
+def get_current_location() -> str:
     """
-    通过IP获取当前所在城市
-    返回：城市名, 国家
+    通过 IP 地址获取当前所在城市
     """
     try:
-        # response = requests.get('https://ipinfo.io', timeout=5)
-        # data = response.json()
-        # return f"{data.get('city', '未知城市')}, {data.get('country', '未知国家')}"
-        return "重庆长寿, 中国"  # 临时返回固定位置，避免IP服务不稳定导致的错误
+        # ipinfo.io 提供免费的基础 IP 定位服务
+        response = requests.get('https://ipinfo.io/json', timeout=5)
+        response.raise_for_status() # 检查请求是否成功
+        data = response.json()
+        
+        # 提取城市信息
+        city = data.get('city', '未知城市')
+        region = data.get('region', '')
+        country = data.get('country', '')
+        
+        # 组合成易于大模型理解的字符串
+        location_str = f"{country} {region} {city}"
+        return location_str.strip()
+        
     except Exception as e:
-        return f"获取位置失败：{str(e)}"
+         return f"获取位置失败：{str(e)}"
