@@ -1,3 +1,5 @@
 *.env
 .vscode/
 __pycache__/
+structure.txt
+test_api.py
