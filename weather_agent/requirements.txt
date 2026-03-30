@@ -1,5 +1,8 @@
+Flask
 langchain
 langchain-openai
-python-dotenv
+langchain-community
 serpapi
+langchain-tavily
+python-dotenv
 requests
