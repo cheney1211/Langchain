@@ -15,7 +15,7 @@ def run_weather_agent(user_input):
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"  
     )
 
-    agent = create_agent(model=llm, tools=tools, system_prompt="你是一个智能助手，可以查询天气、搜索信息并提供建议。")
+    agent = create_agent(model=llm, tools=tools, system_prompt="你是一个智能助手，可以查询天气、从网络搜索信息、以及从本地 PDF 知识库中检索相关内容来回答用户的问题。请根据用户的提问，合理调用工具获取信息，并给出准确的回答。")
     
     # 修改 2: 直接使用传入的 user_input 变量，不再写死
     result = agent.invoke({"messages": [{"role": "user", "content": user_input}]})
