@@ -129,8 +129,8 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
               <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 border border-dashed border-gray-300">
                 <p className="font-semibold mb-1 text-gray-700">测试账号 (密码均为 123):</p>
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>普通用户: admin (需选管理员角色)</li>
-                  <li>管理员: user (需选普通用户角色)</li>
+                  <li>管理员: admin (需选管理员角色)</li>
+                  <li>普通用户: user (需选普通用户角色)</li>
                 </ul>
               </div>
             )}
