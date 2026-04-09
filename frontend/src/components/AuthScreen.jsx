@@ -18,7 +18,8 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || '请求失败');
+      if (!res.ok) throw new Error(data.message || data.error || '请求失败');
+
 
       if (isLogin) {
         setCurrentUser(data.user);
