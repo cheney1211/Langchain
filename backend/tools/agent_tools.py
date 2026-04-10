@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_community.utilities import SerpAPIWrapper
 from langchain_tavily import TavilySearch
-from utils.helpers import get_current_location 
+
 
 load_dotenv()
 
@@ -44,14 +44,7 @@ def get_search_tool():
 # ==========================================
 # 暴露给 Agent 的最终工具列表
 # ==========================================
-@tool
-def get_local_weather() -> str:
-    """获取用户当前所在位置的实时天气。无需输入任何参数。"""
-    location = get_current_location()
-    # 动态获取当前的搜索工具去查天气
-    current_search_tool = get_search_tool()
-    return current_search_tool.invoke(f"{location} 的实时天气")
 
 def get_agent_tools():
     # 无论底层怎么切，大模型拿到的始终是这俩个工具：查本地天气、查通用信息
-    return [get_local_weather, get_search_tool()]
+    return [get_search_tool()]
