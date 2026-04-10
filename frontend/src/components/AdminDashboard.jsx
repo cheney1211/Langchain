@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User } from 'lucide-react';
+import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('search'); // 'search' 或 'rag'
   const [provider, setProvider] = useState('serpapi');
   const [saveStatus, setSaveStatus] = useState('');
+  
+  // 知识库文件状态
+  const [kbFiles, setKbFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // 允许上传的文件后缀列表
+  const allowedExtensions = [
+    '.pdf', '.txt', '.md', '.docx', '.xlsx', '.xls', 
+    '.pptx', '.csv', '.py', '.js', '.html', '.css'
+  ];
 
   // 挂载时从 Flask 后端获取当前配置
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/config')
+    fetch('http://127.0.0.1:5000/api/admin_config')
       .then(res => res.json())
       .then(data => {
         if (data && data.provider) {
@@ -17,10 +28,22 @@ export default function AdminDashboard() {
       .catch(err => console.error("配置获取失败:", err));
   }, []);
 
+  // 当切换到 RAG 面板时获取文件列表
+  useEffect(() => {
+    if (activeTab === 'rag') {
+      fetchKbFiles();
+    }
+  }, [activeTab]);
+
+  const showToast = (message) => {
+    setSaveStatus(message);
+    setTimeout(() => setSaveStatus(''), 3000);
+  };
+
   const handleSaveConfig = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/config', {
+      const res = await fetch('http://127.0.0.1:5000/api/admin_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider })
@@ -28,11 +51,83 @@ export default function AdminDashboard() {
       const data = await res.json();
       
       if (res.ok) {
-        setSaveStatus(data.message || '保存成功！');
-        setTimeout(() => setSaveStatus(''), 3000);
+        showToast(data.message || '保存成功！');
       }
     } catch (err) {
       alert("网络错误，无法连接后端");
+    }
+  };
+
+  // --- 知识库 (RAG) 相关方法 ---
+  const fetchKbFiles = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/rag/files');
+      const data = await res.json();
+      if (data.status === 'success') {
+        setKbFiles(data.files);
+      }
+    } catch (err) {
+      console.error("获取知识库文件失败:", err);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValidExtension) {
+      alert("不支持的文件格式！支持的格式包括: \n" + allowedExtensions.join(', '));
+      e.target.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    setIsUploading(true);
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/rag/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.status === 'success') {
+        showToast('知识库文件上传成功！');
+        fetchKbFiles(); // 刷新文件列表
+      } else {
+        alert(`上传失败: ${data.message}`);
+      }
+    } catch (err) {
+      alert("网络错误，上传失败");
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // 清空选择器，允许重复上传同名文件
+    }
+  };
+
+  const handleDeleteFile = async (filename) => {
+    if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 下次请求大模型时向量库可能会重新构建。`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      
+      if (data.status === 'success') {
+        showToast(`文件 ${filename} 已删除`);
+        fetchKbFiles(); // 刷新文件列表
+      } else {
+        alert(`删除失败: ${data.message}`);
+      }
+    } catch (err) {
+      alert("网络错误，删除失败");
     }
   };
 
@@ -43,16 +138,22 @@ export default function AdminDashboard() {
           <Shield className="w-8 h-8 text-blue-600" />
           管理员控制台
         </h2>
-        <p className="text-gray-500 mt-2">管理系统级配置和底层大模型联网工具选项。</p>
+        <p className="text-gray-500 mt-2">管理系统级配置、大模型联网工具选项以及 RAG 本地知识库。</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 左侧侧边栏 */}
         <div className="col-span-1 space-y-2">
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 font-medium rounded-xl transition-colors">
+          <button 
+            onClick={() => setActiveTab('search')}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'search' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
             <Search className="w-5 h-5" /> 搜索工具配置
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-100 font-medium rounded-xl transition-colors">
+          <button 
+            onClick={() => setActiveTab('rag')}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'rag' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
             <Bot className="w-5 h-5" /> 知识库 (RAG) 设置
           </button>
           <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-100 font-medium rounded-xl transition-colors">
@@ -60,82 +161,163 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* 右侧主内容区：搜索工具配置 */}
+        {/* 右侧主内容区 */}
         <div className="col-span-1 lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-gray-500" />
-                大模型 Agent 搜索引擎切换
-              </h3>
-            </div>
             
-            <div className="p-6">
-              {saveStatus && (
-                <div className="mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2 border border-green-100">
-                  <CheckCircle2 className="w-5 h-5" />
-                  {saveStatus}
+            {/* 顶部的 Toast 提示 */}
+            {saveStatus && (
+              <div className="m-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2 border border-green-100">
+                <CheckCircle2 className="w-5 h-5" />
+                {saveStatus}
+              </div>
+            )}
+
+            {/* 视图 1：搜索工具配置 */}
+            {activeTab === 'search' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-gray-500" />
+                    大模型 Agent 搜索引擎切换
+                  </h3>
                 </div>
-              )}
+                
+                <div className="p-6">
+                  <form onSubmit={handleSaveConfig} className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        当前启用的网络搜索节点
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label 
+                          className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                            provider === 'serpapi' 
+                              ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
+                              : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input 
+                            type="radio" 
+                            name="searchProvider" 
+                            className="sr-only"
+                            value="serpapi"
+                            checked={provider === 'serpapi'}
+                            onChange={(e) => setProvider(e.target.value)}
+                          />
+                          <span className="font-bold text-lg">SerpAPI</span>
+                          <span className="text-xs opacity-70">Google 搜索代理核心</span>
+                        </label>
 
-              <form onSubmit={handleSaveConfig} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    当前启用的网络搜索节点
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <label 
-                      className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
-                        provider === 'serpapi' 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
-                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="searchProvider" 
-                        className="sr-only"
-                        value="serpapi"
-                        checked={provider === 'serpapi'}
-                        onChange={(e) => setProvider(e.target.value)}
-                      />
-                      <span className="font-bold text-lg">SerpAPI</span>
-                      <span className="text-xs opacity-70">Google 搜索代理核心</span>
-                    </label>
+                        <label 
+                          className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                            provider === 'tavily' 
+                              ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
+                              : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input 
+                            type="radio" 
+                            name="searchProvider" 
+                            className="sr-only"
+                            value="tavily"
+                            checked={provider === 'tavily'}
+                            onChange={(e) => setProvider(e.target.value)}
+                          />
+                          <span className="font-bold text-lg">Tavily</span>
+                          <span className="text-xs opacity-70">AI 专用的高级搜索引擎</span>
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">注意：您的秘钥在后端的 <code>.env</code> 文件中统一管理，此处仅用于动态切换工具引擎。</p>
+                    </div>
 
-                    <label 
-                      className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
-                        provider === 'tavily' 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
-                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="searchProvider" 
-                        className="sr-only"
-                        value="tavily"
-                        checked={provider === 'tavily'}
-                        onChange={(e) => setProvider(e.target.value)}
-                      />
-                      <span className="font-bold text-lg">Tavily</span>
-                      <span className="text-xs opacity-70">AI 专用的高级搜索引擎</span>
-                    </label>
+                    <div className="pt-4 border-t border-gray-100 flex justify-end">
+                      <button 
+                        type="submit" 
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        保存配置并生效
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </>
+            )}
+
+            {/* 视图 2：RAG 知识库设置 */}
+            {activeTab === 'rag' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-gray-500" />
+                    本地知识库文件管理
+                  </h3>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* 上传区域 */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                    {isUploading ? (
+                      <div className="flex flex-col items-center text-blue-600">
+                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                        <span className="font-medium">正在上传并保存至服务器...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-10 h-10 text-gray-400 mb-3" />
+                        <h4 className="text-gray-800 font-medium mb-1">将文档上传到知识库</h4>
+                        <p className="text-sm text-gray-500 mb-4">
+                          支持: .pdf, .txt, .md, .docx, .xlsx, .pptx, .csv 及代码文件等
+                        </p>
+                        <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-lg transition-colors">
+                          选择文件并上传
+                          <input 
+                            type="file" 
+                            accept=".pdf,.txt,.md,.docx,.xlsx,.xls,.pptx,.csv,.py,.js,.html,.css" 
+                            className="hidden" 
+                            onChange={handleFileUpload} 
+                          />
+                        </label>
+                      </>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-3">注意：您的秘钥在后端的 <code>.env</code> 文件中统一管理，此处仅用于动态切换工具引擎。</p>
-                </div>
 
-                <div className="pt-4 border-t border-gray-100 flex justify-end">
-                  <button 
-                    type="submit" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    保存配置并生效
-                  </button>
+                  {/* 文件列表区域 */}
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3 flex justify-between items-center">
+                      <span>已上传的文档 ({kbFiles.length})</span>
+                      <span className="text-xs font-normal text-orange-500 bg-orange-50 px-2 py-1 rounded">修改文件后，下次对话检索时模型会自动重建 ChromaDB</span>
+                    </h4>
+                    
+                    {kbFiles.length === 0 ? (
+                      <div className="text-center py-6 text-gray-500 text-sm border border-gray-100 rounded-xl bg-gray-50">
+                        当前知识库为空，暂无文档。
+                      </div>
+                    ) : (
+                      <ul className="space-y-3">
+                        {kbFiles.map((filename, idx) => (
+                          <li key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-300 transition-colors">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                              <span className="text-sm font-medium text-gray-700 truncate">{filename}</span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteFile(filename)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="删除此文件"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
-              </form>
-            </div>
+              </>
+            )}
+
           </div>
         </div>
       </div>

@@ -24,7 +24,9 @@ export default function UserDashboard({ currentUser }) {
       const data = await res.json();
       
       if (data.status === 'success') {
-        setMessages(prev => [...prev, { role: 'model', content: data.reply }]);
+        // 防止 LangChain 后端返回字典对象导致 "Objects are not valid as a React child" 崩溃
+        const replyContent = typeof data.reply === 'object' ? JSON.stringify(data.reply, null, 2) : data.reply;
+        setMessages(prev => [...prev, { role: 'model', content: replyContent }]);
       } else {
         setMessages(prev => [...prev, { role: 'model', content: `❌ 错误: ${data.message}` }]);
       }
@@ -33,6 +35,14 @@ export default function UserDashboard({ currentUser }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 辅助函数：安全地渲染消息内容
+  const renderMessageContent = (content) => {
+    if (typeof content === 'object' && content !== null) {
+      return JSON.stringify(content, null, 2);
+    }
+    return String(content);
   };
 
   return (
@@ -44,7 +54,8 @@ export default function UserDashboard({ currentUser }) {
             <User className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">欢迎回来, {currentUser.username}</h2>
+            {/* 加入可选链 (?) 以防 currentUser 为 undefined 导致渲染崩溃 */}
+            <h2 className="text-xl font-bold text-gray-900">欢迎回来, {currentUser?.username || '用户'}</h2>
             <p className="text-gray-500 text-sm">您的专属大语言模型 Agent</p>
           </div>
         </div>
@@ -54,13 +65,13 @@ export default function UserDashboard({ currentUser }) {
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
               <MessageSquare className="w-12 h-12 text-gray-300" />
-              <p>想聊点什么？可以问我关于天气的任何问题。</p>
+              <p>想聊点什么？可以问我任何问题。</p>
             </div>
           ) : (
             messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] md:max-w-[75%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{renderMessageContent(msg.content)}</p>
                 </div>
               </div>
             ))
