@@ -42,7 +42,7 @@ def init_db():
             )
         """)
         
-        # 插入初始的 admin 和 user 账号(如果表是空的)
+        # 插入初始的 admin 和 user 账号(如果表是空的) 用于测试阶段
         cursor.execute("SELECT COUNT(*) as count FROM users")
         result = cursor.fetchone()
         if result['count'] == 0:

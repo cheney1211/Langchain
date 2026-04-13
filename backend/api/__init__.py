@@ -15,8 +15,10 @@ from .auth import auth_bp
 from .chat import chat_bp
 from .rag import rag_bp
 from .admin_config import admin_bp
+from .admin_users import admin_users_bp
 
 api_bp.register_blueprint(auth_bp)
 api_bp.register_blueprint(chat_bp)
 api_bp.register_blueprint(rag_bp)
 api_bp.register_blueprint(admin_bp)
+api_bp.register_blueprint(admin_users_bp)

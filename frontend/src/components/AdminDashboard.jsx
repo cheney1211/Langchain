@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2 } from 'lucide-react';
+import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2, Users } from 'lucide-react';
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('search'); // 'search' 或 'rag'
+export default function AdminDashboard({ currentUser }) {
+  const [activeTab, setActiveTab] = useState('search'); // 'search', 'rag', 或 'users'
   const [provider, setProvider] = useState('serpapi');
   const [saveStatus, setSaveStatus] = useState('');
   
   // 知识库文件状态
   const [kbFiles, setKbFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  // 用户管理状态
+  const [users, setUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   // 允许上传的文件后缀列表
   const allowedExtensions = [
@@ -28,11 +32,10 @@ export default function AdminDashboard() {
       .catch(err => console.error("配置获取失败:", err));
   }, []);
 
-  // 当切换到 RAG 面板时获取文件列表
+  // 监听 Tab 切换获取不同数据
   useEffect(() => {
-    if (activeTab === 'rag') {
-      fetchKbFiles();
-    }
+    if (activeTab === 'rag') fetchKbFiles();
+    if (activeTab === 'users') fetchUsers();
   }, [activeTab]);
 
   const showToast = (message) => {
@@ -97,7 +100,7 @@ export default function AdminDashboard() {
       
       if (data.status === 'success') {
         showToast('知识库文件上传成功！');
-        fetchKbFiles(); // 刷新文件列表
+        fetchKbFiles(); 
       } else {
         alert(`上传失败: ${data.message}`);
       }
@@ -105,24 +108,74 @@ export default function AdminDashboard() {
       alert("网络错误，上传失败");
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // 清空选择器，允许重复上传同名文件
+      e.target.value = ''; 
     }
   };
 
   const handleDeleteFile = async (filename) => {
-    if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 下次请求大模型时向量库可能会重新构建。`)) {
-      return;
-    }
+    if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 下次请求大模型时向量库可能会重新构建。`)) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, { method: 'DELETE' });
       const data = await res.json();
       
       if (data.status === 'success') {
         showToast(`文件 ${filename} 已删除`);
-        fetchKbFiles(); // 刷新文件列表
+        fetchKbFiles(); 
+      } else {
+        alert(`删除失败: ${data.message}`);
+      }
+    } catch (err) {
+      alert("网络错误，删除失败");
+    }
+  };
+
+  // --- 用户管理相关方法 ---
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/admin/users');
+      const data = await res.json();
+      if (data.status === 'success') {
+        setUsers(data.users);
+      } else {
+        console.error("获取用户失败:", data.message);
+      }
+    } catch (err) {
+      console.error("获取用户列表失败:", err);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const handleUpdateUserRole = async (userId, newRole) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast('用户角色已更新');
+        fetchUsers();
+      } else {
+        alert(`更新失败: ${data.message}`);
+      }
+    } catch (err) {
+      alert("网络错误，更新失败");
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`确认要永久删除用户 "${username}" 吗？此操作无法撤销。`)) return;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(`用户 ${username} 已被删除`);
+        fetchUsers();
       } else {
         alert(`删除失败: ${data.message}`);
       }
@@ -138,10 +191,10 @@ export default function AdminDashboard() {
           <Shield className="w-8 h-8 text-blue-600" />
           管理员控制台
         </h2>
-        <p className="text-gray-500 mt-2">管理系统级配置、大模型联网工具选项以及 RAG 本地知识库。</p>
+        <p className="text-gray-500 mt-2">管理系统级配置、大模型联网工具选项、本地知识库以及账号管理。</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* 左侧侧边栏 */}
         <div className="col-span-1 space-y-2">
           <button 
@@ -154,16 +207,19 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('rag')}
             className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'rag' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
           >
-            <Bot className="w-5 h-5" /> 知识库 (RAG) 设置
+            <Bot className="w-5 h-5" /> 知识库 (RAG)
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-100 font-medium rounded-xl transition-colors">
-            <User className="w-5 h-5" /> 用户管理
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
+            <Users className="w-5 h-5" /> 用户管理
           </button>
         </div>
 
         {/* 右侧主内容区 */}
-        <div className="col-span-1 lg:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="col-span-1 lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
             
             {/* 顶部的 Toast 提示 */}
             {saveStatus && (
@@ -189,7 +245,7 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-semibold text-gray-700 mb-3">
                         当前启用的网络搜索节点
                       </label>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <label 
                           className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
                             provider === 'serpapi' 
@@ -314,6 +370,77 @@ export default function AdminDashboard() {
                       </ul>
                     )}
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* 视图 3：用户管理 */}
+            {activeTab === 'users' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-gray-500" />
+                    账号与权限管理
+                  </h3>
+                  <button onClick={fetchUsers} className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors">
+                    刷新列表
+                  </button>
+                </div>
+
+                <div className="p-6">
+                  {isLoadingUsers ? (
+                    <div className="flex justify-center items-center py-12 text-blue-600">
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50">
+                          <tr className="border-b border-gray-200 text-sm text-gray-500">
+                            <th className="px-6 py-3 font-medium w-16 text-center">序号</th>
+                            <th className="px-6 py-3 font-medium">账号ID</th>
+                            <th className="px-6 py-3 font-medium">用户名</th>
+                            <th className="px-6 py-3 font-medium">角色权限</th>
+                            <th className="px-6 py-3 font-medium text-right">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {users.length > 0 ? users.map((user, index) => (
+                            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 text-sm font-medium text-gray-500 text-center">{index + 1}</td>
+                              <td className="px-6 py-4 text-sm text-gray-500">#{user.id}</td>
+                              <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.username}</td>
+                              <td className="px-6 py-4 text-sm">
+                                <select 
+                                  value={user.role} 
+                                  onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
+                                  disabled={currentUser?.username === user.username}
+                                  className="bg-white border border-gray-300 text-gray-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                >
+                                  <option value="user">普通用户 (User)</option>
+                                  <option value="admin">管理员 (Admin)</option>
+                                </select>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button 
+                                  onClick={() => handleDeleteUser(user.id, user.username)}
+                                  disabled={currentUser?.username === user.username}
+                                  className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-red-50 transition-colors inline-flex items-center"
+                                  title={currentUser?.username === user.username ? "不能删除自身账号" : "永久删除该用户"}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td colSpan="5" className="text-center py-8 text-gray-500 text-sm">暂无用户数据</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </>
             )}
