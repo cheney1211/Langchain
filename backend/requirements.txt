@@ -6,3 +6,5 @@ serpapi
 langchain-tavily
 python-dotenv
 requests
+PyMySQL
+cryptography

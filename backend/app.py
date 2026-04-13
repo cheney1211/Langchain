@@ -2,9 +2,10 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
 import os
+from utils.db import init_db
+
 # 加载环境变量
 load_dotenv()
-
 
 def create_app():
     from api import api_bp
@@ -15,13 +16,17 @@ def create_app():
 
     os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True) # 确保知识库目录存在
 
+    # 初始化 MySQL 数据库及数据表
+    try:
+        init_db()
+        print("✅ MySQL 数据库连接并初始化成功")
+    except Exception as e:
+        print(f"⚠️ MySQL 数据库初始化失败，请检查 .env 中的数据库配置: {e}")
+
     app.register_blueprint(api_bp) # 注册 API 蓝图
     return app
 
 app=create_app()
-
-
-
 
 if __name__ == '__main__':
     print("🚀 Flask API 服务已启动！正在监听端口 5000...")
