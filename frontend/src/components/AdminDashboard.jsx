@@ -99,7 +99,7 @@ export default function AdminDashboard({ currentUser }) {
       const data = await res.json();
       
       if (data.status === 'success') {
-        showToast('知识库文件上传成功！');
+        showToast('知识库文件上传成功，系统正在后台构建向量库！');
         fetchKbFiles(); 
       } else {
         alert(`上传失败: ${data.message}`);
@@ -113,14 +113,14 @@ export default function AdminDashboard({ currentUser }) {
   };
 
   const handleDeleteFile = async (filename) => {
-    if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 下次请求大模型时向量库可能会重新构建。`)) return;
+    if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 删除后系统会自动在后台同步重构向量库。`)) return;
 
     try {
       const res = await fetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, { method: 'DELETE' });
       const data = await res.json();
       
       if (data.status === 'success') {
-        showToast(`文件 ${filename} 已删除`);
+        showToast(`文件 ${filename} 已删除，正在同步后台库。`);
         fetchKbFiles(); 
       } else {
         alert(`删除失败: ${data.message}`);
@@ -199,19 +199,19 @@ export default function AdminDashboard({ currentUser }) {
         <div className="col-span-1 space-y-2">
           <button 
             onClick={() => setActiveTab('search')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'search' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'search' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             <Search className="w-5 h-5" /> 搜索工具配置
           </button>
           <button 
             onClick={() => setActiveTab('rag')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'rag' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'rag' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             <Bot className="w-5 h-5" /> 知识库 (RAG)
           </button>
           <button 
             onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors ${activeTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             <Users className="w-5 h-5" /> 用户管理
           </button>
@@ -290,7 +290,7 @@ export default function AdminDashboard({ currentUser }) {
                     <div className="pt-4 border-t border-gray-100 flex justify-end">
                       <button 
                         type="submit" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg cursor-pointer transition-colors flex items-center gap-2"
                       >
                         <Settings className="w-4 h-4" />
                         保存配置并生效
@@ -343,7 +343,7 @@ export default function AdminDashboard({ currentUser }) {
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-3 flex justify-between items-center">
                       <span>已上传的文档 ({kbFiles.length})</span>
-                      <span className="text-xs font-normal text-orange-500 bg-orange-50 px-2 py-1 rounded">修改文件后，下次对话检索时模型会自动重建 ChromaDB</span>
+                      <span className="text-xs font-normal text-orange-500 bg-orange-50 px-2 py-1 rounded">修改文件后，系统将在后台自动同步重建向量数据库</span>
                     </h4>
                     
                     {kbFiles.length === 0 ? (
@@ -360,7 +360,7 @@ export default function AdminDashboard({ currentUser }) {
                             </div>
                             <button
                               onClick={() => handleDeleteFile(filename)}
-                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                               title="删除此文件"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -382,7 +382,7 @@ export default function AdminDashboard({ currentUser }) {
                     <Users className="w-5 h-5 text-gray-500" />
                     账号与权限管理
                   </h3>
-                  <button onClick={fetchUsers} className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors">
+                  <button onClick={fetchUsers} className="text-sm cursor-pointer font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors">
                     刷新列表
                   </button>
                 </div>

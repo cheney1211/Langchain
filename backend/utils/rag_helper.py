@@ -1,4 +1,5 @@
 import os
+import shutil
 from langchain_community.document_loaders import (
     PyPDFLoader, TextLoader, UnstructuredMarkdownLoader, Docx2txtLoader,
     UnstructuredExcelLoader, UnstructuredPowerPointLoader, CSVLoader
@@ -44,9 +45,33 @@ def load_documents_from_dir(directory):
             
             if loader_class:
                 try:
-                    print(f"正在使用 {loader_class.__name__} 加载文件: {filename}")
-                    loader = loader_class(file_path)
-                    documents.extend(loader.load())
+                    print(f"正在使用 {loader_class.__name__} 加载文件: {file_path}")
+                    
+                    if loader_class == TextLoader:
+                        try:
+                            # 1. 优先尝试最常见的 UTF-8 编码
+                            loader = loader_class(file_path, encoding='utf-8')
+                            documents.extend(loader.load())
+                        except Exception:
+                            print(f"  -> UTF-8 加载失败，尝试 GBK 编码: {file_path}")
+                            try:
+                                # 2. 如果 UTF-8 失败，尝试国内常见的 GBK 编码
+                                loader = loader_class(file_path, encoding='gbk')
+                                documents.extend(loader.load())
+                            except Exception:
+                                # 3. 终极后备：使用系统默认编码
+                                print(f"  -> GBK 也加载失败，尝试系统默认编码: {file_path}")
+                                loader = loader_class(file_path)
+                                documents.extend(loader.load())
+                                
+                    # 修复 2: 针对 CSVLoader 强制使用 utf-8 编码
+                    elif loader_class == CSVLoader:
+                        loader = loader_class(file_path, encoding='utf-8')
+                        documents.extend(loader.load())
+                     # 其他常规文档 (如 PDF, Word, Excel)
+                    else:
+                        loader = loader_class(file_path)
+                        documents.extend(loader.load())
                 except Exception as e:
                     print(f"加载文件 {filename} 失败: {e}")
             else:
@@ -54,55 +79,70 @@ def load_documents_from_dir(directory):
                 
     return documents
 
-def get_vectorstore():
+# 使用单例模式加载模型，避免每次检索和构建都重复加载导致内存溢出或变慢
+_embeddings = None
+def get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        model_name = "Qwen/Qwen3-Embedding-0.6B"
+        model_kwargs = {
+            'device': 'cuda',  
+            'trust_remote_code': True 
+        } 
+        encode_kwargs = {'normalize_embeddings': True} # 向量归一化，提升检索精度
+        print(f"⏳ 正在加载本地 Embedding 模型 {model_name}...")
+        _embeddings = HuggingFaceEmbeddings(
+            model_name=model_name,
+            model_kwargs=model_kwargs,
+            encode_kwargs=encode_kwargs
+        )
+    return _embeddings
+
+def build_vectorstore():
     """
-    核心 RAG 向量库构建函数
+    后台任务：构建/更新 RAG 向量库。
+    如果在上传和删除文件后调用此函数，将自动同步最新的文件库状态。
     """
-    # 1. 动态加载多种格式文件
+    # 1. 每次重新构建前，清理旧的数据库数据以防数据冗余
+    if os.path.exists(DB_DIR):
+        print(f"🗑️ 检测到知识库文件变更，正在清空旧的向量数据库: {DB_DIR}")
+        shutil.rmtree(DB_DIR)
+
+    # 2. 动态加载多种格式文件
     docs = load_documents_from_dir(KNOWLEDGE_BASE_DIR)
     
     if not docs:
-        print("警告: 知识库目录为空或没有支持的文档格式。")
+        print("警告: 知识库目录为空或没有支持的文档格式。向量库已清空。")
         return None
 
-    # 2. 文本切割
+    # 3. 文本切割
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, 
         chunk_overlap=200
     )
     splits = text_splitter.split_documents(docs)
 
-    # 3. 向量化并存入 ChromaDB
-    model_name = "Qwen/Qwen3-Embedding-0.6B"
-    
-    # 添加 trust_remote_code=True 允许加载自定义模型架构
-    model_kwargs = {
-        'device': 'cuda',  
-        'trust_remote_code': True 
-    } 
-    encode_kwargs = {'normalize_embeddings': True}
+    embeddings = get_embeddings()
 
-    print(f"⏳ 正在加载本地 Embedding 模型 {model_name}...")
-    print("💡 提示：该模型较大（约1-2GB），首次运行下载可能需要较长时间，请耐心等待。")
-    
-    embeddings = HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs=model_kwargs,
-        encode_kwargs=encode_kwargs
-    )
-
-
+    # 4. 向量化并存入 ChromaDB
+    print("⏳ 正在构建 ChromaDB 向量存储...")
     vectorstore = Chroma.from_documents(
         documents=splits, 
         embedding=embeddings, 
         persist_directory=DB_DIR
     )
     
-    print(f"成功将 {len(docs)} 个文件转换为向量存入 Chroma 库。")
+    print(f"✅ 成功将 {len(docs)} 个文件转换为向量存入 Chroma 库。")
     return vectorstore
 
 def get_retriever():
-    vectorstore = get_vectorstore()
-    if vectorstore:
-        return vectorstore.as_retriever(search_kwargs={"k": 3})
-    return None
+    """
+    仅在用户触发 RAG 时调用，快速加载现有的向量数据库。
+    """
+    if not os.path.exists(DB_DIR) or not os.listdir(DB_DIR):
+        print("向量库尚未建立或文件已被清空。")
+        return None
+        
+    embeddings = get_embeddings()
+    vectorstore = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+    return vectorstore.as_retriever(search_kwargs={"k": 3})

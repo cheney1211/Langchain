@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_community.utilities import SerpAPIWrapper
 from langchain_tavily import TavilySearch
-
+from utils.rag_helper import get_retriever
 
 load_dotenv()
 
@@ -22,16 +22,28 @@ def serpapi_search(query: str) -> str:
 @tool
 def tavily_search(query: str) -> str:
     """用于查询实时天气、新闻、未知信息的高级搜索。"""
-    # Langchain 已经内置了 Tavily 的原生支持，max_results 可以控制返回几条数据
     search = TavilySearch(max_results=3)
     return search.invoke({"query": query})
+
+# ==========================================
+# 工具 3：RAG 本地知识库搜索
+# ==========================================
+@tool
+def knowledge_base_search(query: str) -> str:
+    """用于从本地知识库中检索相关内容，获取事实和文档信息。"""
+    retriever = get_retriever()
+    if not retriever:
+        return "本地知识库为空或尚未构建完成，无法检索。"
+    docs = retriever.invoke(query)
+    if not docs:
+        return "本地知识库中未找到相关内容。"
+    return "\n\n".join([doc.page_content for doc in docs])
 
 # ==========================================
 # 核心逻辑：动态选择工具
 # ==========================================
 def get_search_tool():
     """根据环境变量，返回对应的搜索引擎工具"""
-    # 获取环境变量，如果没有配，默认使用 serpapi
     provider = os.getenv("SEARCH_PROVIDER", "serpapi").lower()
     
     if provider == "tavily":
@@ -46,5 +58,5 @@ def get_search_tool():
 # ==========================================
 
 def get_agent_tools():
-    # 无论底层怎么切，大模型拿到的始终是这俩个工具：查本地天气、查通用信息
+    # 联网搜索工具列表
     return [get_search_tool()]
