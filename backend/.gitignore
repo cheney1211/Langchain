@@ -1,2 +1,4 @@
 knowledge_base/*
+chroma_db/*
 !knowledge_base/.gitkeep
+!chroma_db/.gitkeep
