@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Shield, AlertCircle, CheckCircle2, Bot } from 'lucide-react';
+import axios from 'axios'; // 登录和注册使用原生 axios 即可（因为无需 token）
 
 export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
   const [formData, setFormData] = useState({ username: '', password: '', role: 'user' });
@@ -8,17 +9,12 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = isLogin ? 'http://localhost:5000/api/login' : 'http://localhost:5000/api/register';
+    const endpoint = isLogin ? 'http://127.0.0.1:5000/api/login' : 'http://127.0.0.1:5000/api/register';
     
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message || data.error || '请求失败');
+      // Axios 自动处理 JSON 序列化
+      const res = await axios.post(endpoint, formData);
+      const data = res.data;
 
       if (isLogin) {
         // 保存双令牌和用户信息到 localStorage 实现持久化
@@ -33,7 +29,9 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
         setTimeout(() => setView('login'), 1500);
       }
     } catch (err) {
-      setError(err.message);
+      // 从 Axios 错误对象中提取后端返回的信息
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || '请求失败';
+      setError(errorMessage);
     }
   };
 

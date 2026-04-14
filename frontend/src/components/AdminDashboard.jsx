@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2, Users } from 'lucide-react';
-import { authFetch } from '../utils/authFetch';
+import api from '../utils/authFetch'; // 引入 axios 实例
 
 export default function AdminDashboard({ currentUser }) {
   const [activeTab, setActiveTab] = useState('search'); 
-  const [provider, setProvider] = useState('serpapi');
+  const [provider, setProvider] = useState(() => {
+    return localStorage.getItem('admin_search_provider') || 'serpapi';
+  });
   const [saveStatus, setSaveStatus] = useState('');
   
   const [kbFiles, setKbFiles] = useState([]);
@@ -18,12 +20,16 @@ export default function AdminDashboard({ currentUser }) {
     '.pptx', '.csv', '.py', '.js', '.html', '.css'
   ];
 
+  // 监听并缓存搜索提供商配置
   useEffect(() => {
-    authFetch('http://127.0.0.1:5000/api/admin_config')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.provider) {
-          setProvider(data.provider);
+    localStorage.setItem('admin_search_provider', provider);
+  }, [provider]);
+
+  useEffect(() => {
+    api.get('/admin_config')
+      .then(res => {
+        if (res.data && res.data.provider) {
+          setProvider(res.data.provider);
         }
       })
       .catch(err => console.error("配置获取失败:", err));
@@ -42,26 +48,18 @@ export default function AdminDashboard({ currentUser }) {
   const handleSaveConfig = async (e) => {
     e.preventDefault();
     try {
-      const res = await authFetch('http://127.0.0.1:5000/api/admin_config', {
-        method: 'POST',
-        body: JSON.stringify({ provider })
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        showToast(data.message || '保存成功！');
-      }
+      const res = await api.post('/admin_config', { provider });
+      showToast(res.data.message || '保存成功！');
     } catch (err) {
-      alert("网络错误，无法连接后端");
+      alert(err.response?.data?.message || "网络错误，无法连接后端");
     }
   };
 
   const fetchKbFiles = async () => {
     try {
-      const res = await authFetch('http://127.0.0.1:5000/api/rag/files');
-      const data = await res.json();
-      if (data.status === 'success') {
-        setKbFiles(data.files);
+      const res = await api.get('/rag/files');
+      if (res.data.status === 'success') {
+        setKbFiles(res.data.files);
       }
     } catch (err) {
       console.error("获取知识库文件失败:", err);
@@ -86,20 +84,19 @@ export default function AdminDashboard({ currentUser }) {
     
     setIsUploading(true);
     try {
-      const res = await authFetch('http://127.0.0.1:5000/api/rag/upload', {
-        method: 'POST',
-        body: formData, // authFetch 会自动处理 formData，不覆盖 Content-Type
+      // Axios 实例会自动去除 Content-Type 让浏览器自行根据 FormData 加上 boundary
+      const res = await api.post('/rag/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' } 
       });
-      const data = await res.json();
       
-      if (data.status === 'success') {
+      if (res.data.status === 'success') {
         showToast('知识库文件上传成功，系统正在后台构建向量库！');
         fetchKbFiles(); 
       } else {
-        alert(`上传失败: ${data.message}`);
+        alert(`上传失败: ${res.data.message}`);
       }
     } catch (err) {
-      alert("网络错误，上传失败");
+      alert(err.response?.data?.message || "网络错误，上传失败");
     } finally {
       setIsUploading(false);
       e.target.value = ''; 
@@ -110,29 +107,27 @@ export default function AdminDashboard({ currentUser }) {
     if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 删除后系统会自动在后台同步重构向量库。`)) return;
 
     try {
-      const res = await authFetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, { method: 'DELETE' });
-      const data = await res.json();
+      const res = await api.delete(`/rag/files/${filename}`);
       
-      if (data.status === 'success') {
+      if (res.data.status === 'success') {
         showToast(`文件 ${filename} 已删除，正在同步后台库。`);
         fetchKbFiles(); 
       } else {
-        alert(`删除失败: ${data.message}`);
+        alert(`删除失败: ${res.data.message}`);
       }
     } catch (err) {
-      alert("网络错误，删除失败");
+      alert(err.response?.data?.message || "网络错误，删除失败");
     }
   };
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      const res = await authFetch('http://127.0.0.1:5000/api/admin/users');
-      const data = await res.json();
-      if (data.status === 'success') {
-        setUsers(data.users);
+      const res = await api.get('/admin/users');
+      if (res.data.status === 'success') {
+        setUsers(res.data.users);
       } else {
-        console.error("获取用户失败:", data.message);
+        console.error("获取用户失败:", res.data.message);
       }
     } catch (err) {
       console.error("获取用户列表失败:", err);
@@ -143,19 +138,15 @@ export default function AdminDashboard({ currentUser }) {
 
   const handleUpdateUserRole = async (userId, newRole) => {
     try {
-      const res = await authFetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
-        method: 'PUT',
-        body: JSON.stringify({ role: newRole })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const res = await api.put(`/admin/users/${userId}/role`, { role: newRole });
+      if (res.data.status === 'success') {
         showToast('用户角色已更新');
         fetchUsers();
       } else {
-        alert(`更新失败: ${data.message}`);
+        alert(`更新失败: ${res.data.message}`);
       }
     } catch (err) {
-      alert("网络错误，更新失败");
+      alert(err.response?.data?.message || "网络错误，更新失败");
     }
   };
 
@@ -163,16 +154,15 @@ export default function AdminDashboard({ currentUser }) {
     if (!window.confirm(`确认要永久删除用户 "${username}" 吗？此操作无法撤销。`)) return;
 
     try {
-      const res = await authFetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const res = await api.delete(`/admin/users/${userId}`);
+      if (res.data.status === 'success') {
         showToast(`用户 ${username} 已被删除`);
         fetchUsers();
       } else {
-        alert(`删除失败: ${data.message}`);
+        alert(`删除失败: ${res.data.message}`);
       }
     } catch (err) {
-      alert("网络错误，删除失败");
+      alert(err.response?.data?.message || "网络错误，删除失败");
     }
   };
 

@@ -5,7 +5,7 @@ import { Bot, Shield, User, LogOut } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import { authFetch } from './utils/authFetch';
+import api from './utils/authFetch'; // 引入全新的 axios api 实例
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -19,10 +19,10 @@ export default function App() {
 
       if (accessToken && savedUser) {
         try {
-          const res = await authFetch('http://127.0.0.1:5000/api/me');
-          if (res.ok) {
-            const data = await res.json();
-            setCurrentUser(data.user);
+          // Axios 请求直接返回 data，无需 .json()
+          const res = await api.get('/me');
+          if (res.data && res.data.status === 'success') {
+            setCurrentUser(res.data.user);
             setView('dashboard');
           } else {
             handleLogout();
