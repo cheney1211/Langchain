@@ -20,8 +20,12 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
 
       if (!res.ok) throw new Error(data.message || data.error || '请求失败');
 
-
       if (isLogin) {
+        // 保存双令牌和用户信息到 localStorage 实现持久化
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
         setCurrentUser(data.user);
         setView('dashboard');
       } else {
@@ -34,7 +38,6 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
   };
 
   return (
-    // ... 原来的表单 JSX 代码 (保留角色选择器和输入框) ...
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="bg-blue-600 p-6 text-center">
@@ -59,18 +62,17 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* 角色选择器 - 核心需求 */}
               <div className="flex bg-gray-100 p-1 rounded-xl">
                 <button
                   type="button"
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all ${formData.role === 'user' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${formData.role === 'user' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                   onClick={() => setFormData({...formData, role: 'user'})}
                 >
                   <User className="w-4 h-4" /> 普通用户
                 </button>
                 <button
                   type="button"
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all ${formData.role === 'admin' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${formData.role === 'admin' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                   onClick={() => setFormData({...formData, role: 'admin'})}
                 >
                   <Shield className="w-4 h-4" /> 管理员
@@ -101,7 +103,7 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
 
               <button 
                 type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors cursor-pointer"
               >
                 {isLogin ? '登录' : '注册账号'}
               </button>
@@ -111,20 +113,19 @@ export default function AuthScreen({ isLogin, setView, setCurrentUser }) {
               {isLogin ? (
                 <p>
                   还没有账号？ 
-                  <button onClick={() => {setView('register'); setError('');}} className="text-blue-600 font-medium hover:underline ml-1">
+                  <button onClick={() => {setView('register'); setError('');}} className="text-blue-600 font-medium hover:underline ml-1 cursor-pointer">
                     立即注册
                   </button>
                 </p>
               ) : (
                 <p>
                   已有账号？ 
-                  <button onClick={() => {setView('login'); setError('');}} className="text-blue-600 font-medium hover:underline ml-1">
+                  <button onClick={() => {setView('login'); setError('');}} className="text-blue-600 font-medium hover:underline ml-1 cursor-pointer">
                     返回登录
                   </button>
                 </p>
               )}
             </div>
-            
             {/* 提示测试账号信息 */}
             {isLogin && (
               <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 border border-dashed border-gray-300">

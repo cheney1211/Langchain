@@ -4,6 +4,8 @@ from flask_cors import CORS
 import os
 from utils.db import init_db
 from utils.rag_helper import get_embeddings
+from flask_jwt_extended import JWTManager
+from datetime import timedelta
 
 # 加载环境变量
 load_dotenv()
@@ -14,6 +16,15 @@ def create_app():
     app = Flask(__name__)
     CORS(app) # 允许跨域请求
     app.json.ensure_ascii = False # 确保 JSON 响应中的中文正常显示
+
+
+    # ===== JWT 配置 =====
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback-secret-key-please-change-in-env")
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15) # Access Token 有效期短 (15分钟)
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=7)    # Refresh Token 有效期长 (7天)
+    jwt = JWTManager(app)
+    # ====================
+
 
     os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True) # 确保知识库目录存在
 

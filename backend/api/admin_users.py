@@ -1,5 +1,6 @@
 from . import *
 from utils.db import get_db_connection
+from flask_jwt_extended import jwt_required
 
 admin_users_bp = Blueprint('admin_users', __name__)
 
@@ -7,6 +8,7 @@ admin_users_bp = Blueprint('admin_users', __name__)
 # 路由：管理员 - 获取用户列表
 # ==========================================
 @admin_users_bp.route('/admin/users', methods=['GET'])
+@jwt_required()
 def get_users():
     conn = get_db_connection()
     try:
@@ -24,6 +26,7 @@ def get_users():
 # 路由：管理员 - 更新用户角色
 # ==========================================
 @admin_users_bp.route('/admin/users/<int:user_id>/role', methods=['PUT'])
+@jwt_required()
 def update_user_role(user_id):
     data = request.json
     new_role = data.get('role')
@@ -46,6 +49,7 @@ def update_user_role(user_id):
 # 路由：管理员 - 删除用户
 # ==========================================
 @admin_users_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
 def delete_user(user_id):
     conn = get_db_connection()
     try:

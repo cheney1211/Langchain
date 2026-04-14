@@ -3,12 +3,14 @@ from config import KNOWLEDGE_BASE_DIR # 从根目录导入
 from utils.validation import allowed_file 
 import threading
 from utils.rag_helper import build_vectorstore
+from flask_jwt_extended import jwt_required
  
 rag_bp = Blueprint('rag', __name__)
 # ==========================================
 # 路由：RAG 知识库管理
 # ==========================================
 @rag_bp.route('/rag/files', methods=['GET'])
+@jwt_required()
 def get_kb_files():
     try:
         files = []
@@ -22,6 +24,7 @@ def get_kb_files():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @rag_bp.route('/rag/upload', methods=['POST'])
+@jwt_required()
 def upload_kb_file():
     try:
         if 'file' not in request.files:
@@ -44,6 +47,7 @@ def upload_kb_file():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @rag_bp.route('/rag/files/<filename>', methods=['DELETE'])
+@jwt_required()
 def delete_kb_file(filename):
     try:
         file_path = os.path.join(KNOWLEDGE_BASE_DIR, secure_filename(filename))

@@ -1,5 +1,6 @@
 from . import *
 from utils.db import get_db_connection
+from flask_jwt_extended import jwt_required
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -7,6 +8,7 @@ admin_bp = Blueprint('admin', __name__)
 # 路由：管理员配置
 # ==========================================
 @admin_bp.route('/admin_config', methods=['GET', 'POST'])
+@jwt_required()
 def manage_config():
     conn = get_db_connection()
     try:

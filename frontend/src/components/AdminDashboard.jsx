@@ -1,28 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2, Users } from 'lucide-react';
+import { authFetch } from '../utils/authFetch';
 
 export default function AdminDashboard({ currentUser }) {
-  const [activeTab, setActiveTab] = useState('search'); // 'search', 'rag', 或 'users'
+  const [activeTab, setActiveTab] = useState('search'); 
   const [provider, setProvider] = useState('serpapi');
   const [saveStatus, setSaveStatus] = useState('');
   
-  // 知识库文件状态
   const [kbFiles, setKbFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // 用户管理状态
   const [users, setUsers] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  // 允许上传的文件后缀列表
   const allowedExtensions = [
     '.pdf', '.txt', '.md', '.docx', '.xlsx', '.xls', 
     '.pptx', '.csv', '.py', '.js', '.html', '.css'
   ];
 
-  // 挂载时从 Flask 后端获取当前配置
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/admin_config')
+    authFetch('http://127.0.0.1:5000/api/admin_config')
       .then(res => res.json())
       .then(data => {
         if (data && data.provider) {
@@ -32,7 +29,6 @@ export default function AdminDashboard({ currentUser }) {
       .catch(err => console.error("配置获取失败:", err));
   }, []);
 
-  // 监听 Tab 切换获取不同数据
   useEffect(() => {
     if (activeTab === 'rag') fetchKbFiles();
     if (activeTab === 'users') fetchUsers();
@@ -46,9 +42,8 @@ export default function AdminDashboard({ currentUser }) {
   const handleSaveConfig = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/admin_config', {
+      const res = await authFetch('http://127.0.0.1:5000/api/admin_config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider })
       });
       const data = await res.json();
@@ -61,10 +56,9 @@ export default function AdminDashboard({ currentUser }) {
     }
   };
 
-  // --- 知识库 (RAG) 相关方法 ---
   const fetchKbFiles = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/rag/files');
+      const res = await authFetch('http://127.0.0.1:5000/api/rag/files');
       const data = await res.json();
       if (data.status === 'success') {
         setKbFiles(data.files);
@@ -92,9 +86,9 @@ export default function AdminDashboard({ currentUser }) {
     
     setIsUploading(true);
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/rag/upload', {
+      const res = await authFetch('http://127.0.0.1:5000/api/rag/upload', {
         method: 'POST',
-        body: formData,
+        body: formData, // authFetch 会自动处理 formData，不覆盖 Content-Type
       });
       const data = await res.json();
       
@@ -116,7 +110,7 @@ export default function AdminDashboard({ currentUser }) {
     if (!window.confirm(`确定要从知识库中删除 "${filename}" 吗？\n注意: 删除后系统会自动在后台同步重构向量库。`)) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, { method: 'DELETE' });
+      const res = await authFetch(`http://127.0.0.1:5000/api/rag/files/${filename}`, { method: 'DELETE' });
       const data = await res.json();
       
       if (data.status === 'success') {
@@ -130,11 +124,10 @@ export default function AdminDashboard({ currentUser }) {
     }
   };
 
-  // --- 用户管理相关方法 ---
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/admin/users');
+      const res = await authFetch('http://127.0.0.1:5000/api/admin/users');
       const data = await res.json();
       if (data.status === 'success') {
         setUsers(data.users);
@@ -150,9 +143,8 @@ export default function AdminDashboard({ currentUser }) {
 
   const handleUpdateUserRole = async (userId, newRole) => {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
+      const res = await authFetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
       });
       const data = await res.json();
@@ -171,7 +163,7 @@ export default function AdminDashboard({ currentUser }) {
     if (!window.confirm(`确认要永久删除用户 "${username}" 吗？此操作无法撤销。`)) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, { method: 'DELETE' });
+      const res = await authFetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.status === 'success') {
         showToast(`用户 ${username} 已被删除`);
@@ -195,7 +187,6 @@ export default function AdminDashboard({ currentUser }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* 左侧侧边栏 */}
         <div className="col-span-1 space-y-2">
           <button 
             onClick={() => setActiveTab('search')}
@@ -217,11 +208,8 @@ export default function AdminDashboard({ currentUser }) {
           </button>
         </div>
 
-        {/* 右侧主内容区 */}
         <div className="col-span-1 lg:col-span-3">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
-            
-            {/* 顶部的 Toast 提示 */}
             {saveStatus && (
               <div className="m-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2 border border-green-100">
                 <CheckCircle2 className="w-5 h-5" />
@@ -229,7 +217,6 @@ export default function AdminDashboard({ currentUser }) {
               </div>
             )}
 
-            {/* 视图 1：搜索工具配置 */}
             {activeTab === 'search' && (
               <>
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
@@ -238,62 +225,26 @@ export default function AdminDashboard({ currentUser }) {
                     大模型 Agent 搜索引擎切换
                   </h3>
                 </div>
-                
                 <div className="p-6">
                   <form onSubmit={handleSaveConfig} className="space-y-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        当前启用的网络搜索节点
-                      </label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">当前启用的网络搜索节点</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label 
-                          className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
-                            provider === 'serpapi' 
-                              ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
-                              : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          <input 
-                            type="radio" 
-                            name="searchProvider" 
-                            className="sr-only"
-                            value="serpapi"
-                            checked={provider === 'serpapi'}
-                            onChange={(e) => setProvider(e.target.value)}
-                          />
+                        <label className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${provider === 'serpapi' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}`}>
+                          <input type="radio" name="searchProvider" className="sr-only" value="serpapi" checked={provider === 'serpapi'} onChange={(e) => setProvider(e.target.value)} />
                           <span className="font-bold text-lg">SerpAPI</span>
                           <span className="text-xs opacity-70">Google 搜索代理核心</span>
                         </label>
-
-                        <label 
-                          className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
-                            provider === 'tavily' 
-                              ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' 
-                              : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          <input 
-                            type="radio" 
-                            name="searchProvider" 
-                            className="sr-only"
-                            value="tavily"
-                            checked={provider === 'tavily'}
-                            onChange={(e) => setProvider(e.target.value)}
-                          />
+                        <label className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${provider === 'tavily' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}`}>
+                          <input type="radio" name="searchProvider" className="sr-only" value="tavily" checked={provider === 'tavily'} onChange={(e) => setProvider(e.target.value)} />
                           <span className="font-bold text-lg">Tavily</span>
                           <span className="text-xs opacity-70">AI 专用的高级搜索引擎</span>
                         </label>
                       </div>
-                      <p className="text-xs text-gray-500 mt-3">注意：您的秘钥在后端的 <code>.env</code> 文件中统一管理，此处仅用于动态切换工具引擎。</p>
                     </div>
-
                     <div className="pt-4 border-t border-gray-100 flex justify-end">
-                      <button 
-                        type="submit" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg cursor-pointer transition-colors flex items-center gap-2"
-                      >
-                        <Settings className="w-4 h-4" />
-                        保存配置并生效
+                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg cursor-pointer transition-colors flex items-center gap-2">
+                        <Settings className="w-4 h-4" /> 保存配置并生效
                       </button>
                     </div>
                   </form>
@@ -301,7 +252,6 @@ export default function AdminDashboard({ currentUser }) {
               </>
             )}
 
-            {/* 视图 2：RAG 知识库设置 */}
             {activeTab === 'rag' && (
               <>
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
@@ -310,9 +260,7 @@ export default function AdminDashboard({ currentUser }) {
                     本地知识库文件管理
                   </h3>
                 </div>
-
                 <div className="p-6 space-y-6">
-                  {/* 上传区域 */}
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50 hover:bg-gray-100 transition-colors">
                     {isUploading ? (
                       <div className="flex flex-col items-center text-blue-600">
@@ -323,29 +271,17 @@ export default function AdminDashboard({ currentUser }) {
                       <>
                         <UploadCloud className="w-10 h-10 text-gray-400 mb-3" />
                         <h4 className="text-gray-800 font-medium mb-1">将文档上传到知识库</h4>
-                        <p className="text-sm text-gray-500 mb-4">
-                          支持: .pdf, .txt, .md, .docx, .xlsx, .pptx, .csv 及代码文件等
-                        </p>
-                        <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-lg transition-colors">
+                        <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-lg transition-colors mt-2">
                           选择文件并上传
-                          <input 
-                            type="file" 
-                            accept=".pdf,.txt,.md,.docx,.xlsx,.xls,.pptx,.csv,.py,.js,.html,.css" 
-                            className="hidden" 
-                            onChange={handleFileUpload} 
-                          />
+                          <input type="file" accept=".pdf,.txt,.md,.docx,.xlsx,.xls,.pptx,.csv,.py,.js,.html,.css" className="hidden" onChange={handleFileUpload} />
                         </label>
                       </>
                     )}
                   </div>
-
-                  {/* 文件列表区域 */}
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-3 flex justify-between items-center">
                       <span>已上传的文档 ({kbFiles.length})</span>
-                      <span className="text-xs font-normal text-orange-500 bg-orange-50 px-2 py-1 rounded">修改文件后，系统将在后台自动同步重建向量数据库</span>
                     </h4>
-                    
                     {kbFiles.length === 0 ? (
                       <div className="text-center py-6 text-gray-500 text-sm border border-gray-100 rounded-xl bg-gray-50">
                         当前知识库为空，暂无文档。
@@ -354,17 +290,11 @@ export default function AdminDashboard({ currentUser }) {
                       <ul className="space-y-3">
                         {kbFiles.map((filename, idx) => (
                           <li key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-300 transition-colors">
-                            <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="flex items-center gap-3">
                               <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
                               <span className="text-sm font-medium text-gray-700 truncate">{filename}</span>
                             </div>
-                            <button
-                              onClick={() => handleDeleteFile(filename)}
-                              className="p-2 cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="删除此文件"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => handleDeleteFile(filename)} className="p-2 cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                           </li>
                         ))}
                       </ul>
@@ -374,7 +304,6 @@ export default function AdminDashboard({ currentUser }) {
               </>
             )}
 
-            {/* 视图 3：用户管理 */}
             {activeTab === 'users' && (
               <>
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
@@ -386,18 +315,14 @@ export default function AdminDashboard({ currentUser }) {
                     刷新列表
                   </button>
                 </div>
-
                 <div className="p-6">
                   {isLoadingUsers ? (
-                    <div className="flex justify-center items-center py-12 text-blue-600">
-                      <Loader2 className="w-8 h-8 animate-spin" />
-                    </div>
+                    <div className="flex justify-center items-center py-12 text-blue-600"><Loader2 className="w-8 h-8 animate-spin" /></div>
                   ) : (
                     <div className="overflow-x-auto border border-gray-200 rounded-xl">
                       <table className="w-full text-left border-collapse">
                         <thead className="bg-gray-50">
                           <tr className="border-b border-gray-200 text-sm text-gray-500">
-                            <th className="px-6 py-3 font-medium w-16 text-center">序号</th>
                             <th className="px-6 py-3 font-medium">账号ID</th>
                             <th className="px-6 py-3 font-medium">用户名</th>
                             <th className="px-6 py-3 font-medium">角色权限</th>
@@ -405,9 +330,8 @@ export default function AdminDashboard({ currentUser }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {users.length > 0 ? users.map((user, index) => (
+                          {users.length > 0 ? users.map((user) => (
                             <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-medium text-gray-500 text-center">{index + 1}</td>
                               <td className="px-6 py-4 text-sm text-gray-500">#{user.id}</td>
                               <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.username}</td>
                               <td className="px-6 py-4 text-sm">
@@ -415,7 +339,7 @@ export default function AdminDashboard({ currentUser }) {
                                   value={user.role} 
                                   onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
                                   disabled={currentUser?.username === user.username}
-                                  className="bg-white border border-gray-300 text-gray-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                  className="bg-white border border-gray-300 text-gray-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 disabled:bg-gray-100"
                                 >
                                   <option value="user">普通用户 (User)</option>
                                   <option value="admin">管理员 (Admin)</option>
@@ -425,17 +349,14 @@ export default function AdminDashboard({ currentUser }) {
                                 <button 
                                   onClick={() => handleDeleteUser(user.id, user.username)}
                                   disabled={currentUser?.username === user.username}
-                                  className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-red-50 transition-colors inline-flex items-center"
-                                  title={currentUser?.username === user.username ? "不能删除自身账号" : "永久删除该用户"}
+                                  className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-red-50"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </td>
                             </tr>
                           )) : (
-                            <tr>
-                              <td colSpan="5" className="text-center py-8 text-gray-500 text-sm">暂无用户数据</td>
-                            </tr>
+                            <tr><td colSpan="5" className="text-center py-8 text-gray-500">暂无数据</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -444,7 +365,6 @@ export default function AdminDashboard({ currentUser }) {
                 </div>
               </>
             )}
-
           </div>
         </div>
       </div>
