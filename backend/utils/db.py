@@ -60,6 +60,32 @@ def init_db():
         cursor.execute("SELECT COUNT(*) as count FROM system_config WHERE config_key='search_provider'")
         if cursor.fetchone()['count'] == 0:
             cursor.execute("INSERT INTO system_config (config_key, config_value) VALUES ('search_provider', 'serpapi')")
-            
+         
+         # 4. 创建会话表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id VARCHAR(50) PRIMARY KEY, -- 可以使用 UUID
+                user_id INT NOT NULL,
+                title VARCHAR(100) DEFAULT '新对话',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
+        # 5. 创建消息表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                session_id VARCHAR(50) NOT NULL,
+                role VARCHAR(20) NOT NULL, -- 'user' 或 'model'
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+            )
+        """)
+
+        
         conn.commit()
+
+        
     conn.close()

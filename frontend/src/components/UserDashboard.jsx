@@ -1,166 +1,221 @@
-import React, { useState, useEffect } from 'react';
-import { User, MessageSquare, Loader2, Send, Database } from 'lucide-react';
-import api from '../utils/authFetch'; // 引入 axios 实例
+import React, { useState, useEffect, useRef } from 'react';
+import api from '../utils/authFetch.js';// 引入 axios 实例
 
-export default function UserDashboard({ currentUser }) {
-  const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [useRag, setUseRag] = useState(() => {
-    return localStorage.getItem('use_rag_setting') === 'true';
-  });
-  const [hasKbFiles, setHasKbFiles] = useState(false);
+const UserDashboard = () => {
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    
+    // 初始化时从 localStorage 读取 RAG 状态，默认为 false
+    const [useRag, setUseRag] = useState(() => {
+        const savedRag = localStorage.getItem('use_rag_setting');
+        return savedRag === 'true';
+    });
+    
+    // 历史会话状态
+    const [sessions, setSessions] = useState([]);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
+    const messagesEndRef = useRef(null);
 
-  // 监听状态变化并同步到 localStorage
-  useEffect(() => {
-    localStorage.setItem('use_rag_setting', useRag);
-  }, [useRag]);
+    // 监听状态变化并同步到 localStorage
+    useEffect(() => {
+        localStorage.setItem('use_rag_setting', useRag);
+    }, [useRag]);
 
-  useEffect(() => {
-    const checkKbFiles = async () => {
-      try {
-        const res = await api.get('/rag/files');
-        if (res.data.status === 'success' && res.data.files && res.data.files.length > 0) {
-          setHasKbFiles(true);
-        } else {
-          setHasKbFiles(false);
-          setUseRag(false);
+    // 初始加载历史会话列表
+    useEffect(() => {
+        fetchSessions();
+    }, []);
+
+    // 每次消息更新后，自动滚动到最底部
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoading]);
+
+    // 获取会话列表
+    const fetchSessions = async () => {
+        try {
+            const res = await api.get('/history/sessions'); 
+            if (res.status === 200) {
+                const data = res.data;
+                if (data.status === 'success') {
+                    setSessions(data.sessions);
+                }
+            }
+        } catch (error) {
+            console.error("无法获取会话列表", error);
         }
-      } catch (err) {
-        console.error("检查知识库文件失败", err);
-      }
     };
-    checkKbFiles();
-  }, []);
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-    
-    const userMsg = { role: 'user', content: inputText };
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
-    setIsLoading(true);
-    
-    try {
-      const res = await api.post('/chat', { 
-        prompt: userMsg.content, 
-        use_rag: useRag 
-      });
-      const data = res.data;
-      
-      if (data.status === 'success') {
-        const replyContent = typeof data.reply === 'object' ? JSON.stringify(data.reply, null, 2) : data.reply;
-        setMessages(prev => [...prev, { role: 'model', content: replyContent }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'model', content: `❌ 错误: ${data.message}` }]);
-      }
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', content: '⚠️ 网络错误，请检查后端服务是否已启动。' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // 加载单个会话的历史消息
+    const loadSession = async (sessionId) => {
+        setCurrentSessionId(sessionId);
+        try {
+            const res = await api.get(`/history/sessions/${sessionId}/messages`);
+            if (res.status === 200) {
+                const data = res.data;
+                if (data.status === 'success') {
+                    setMessages(data.messages);
+                }
+            }
+        } catch (error) {
+            console.error("加载消息失败", error);
+        }
+    };
 
-  const renderMessageContent = (content) => {
-    if (typeof content === 'object' && content !== null) {
-      return JSON.stringify(content, null, 2);
-    }
-    return String(content);
-  };
+    // 新建对话
+    const handleNewSession = () => {
+        setCurrentSessionId(null);
+        setMessages([]);
+    };
 
-  return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto h-[calc(100vh-64px)] flex flex-col">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden">
-        {/* 头部信息和 RAG 开关 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">欢迎回来, {currentUser?.username || '用户'}</h2>
-              <p className="text-gray-500 text-sm">您的专属大语言模型 Agent</p>
-            </div>
-          </div>
-          
-          {/* 操作面板 */}
-          <div className="flex items-center gap-3">
-            
-            {/* RAG 切换面板 */}
-            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
-              <Database className={`w-4 h-4 ${useRag ? 'text-blue-600' : 'text-gray-400'}`} />
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">本地知识库问答助手</span>
-              <button 
-                onClick={() => {
-                  if (!hasKbFiles) {
-                    alert("管理员尚未上传知识库文件，目前无法使用本地检索功能。");
-                    return;
-                  }
-                  setUseRag(!useRag);
-                }}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${useRag ? 'bg-blue-600' : 'bg-gray-300'} ${!hasKbFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${useRag ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-          </div>
-        </div>
+    // 发送消息
+    const handleSendMessage = async (e) => {
+        e?.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userText = input.trim();
+        setInput('');
         
-        {/* 聊天记录区域 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-              <MessageSquare className="w-12 h-12 text-gray-300" />
-              <p>想聊点什么？可以问我任何问题。</p>
-            </div>
-          ) : (
-            messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] md:max-w-[75%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
-                  <p className="whitespace-pre-wrap leading-relaxed">{renderMessageContent(msg.content)}</p>
-                </div>
-              </div>
-            ))
-          )}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-none p-4 shadow-sm flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                <span className="text-sm text-gray-500 font-medium">Agent 正在思考并调用工具...</span>
-              </div>
-            </div>
-          )}
-        </div>
+        // 乐观更新 UI
+        setMessages(prev => [...prev, { role: 'user', content: userText }]);
+        setIsLoading(true);
 
-        {/* 输入区域 */}
-        <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-          <div className="relative flex items-end gap-3 max-w-4xl mx-auto">
-            <div className="flex-1 relative">
-              <textarea 
-                className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none min-h-[56px] max-h-32"
-                placeholder={useRag ? "输入您的问题，将仅从本地知识库中进行搜索与回答..." : "输入您的问题 (例如：北京今天的天气怎么样？)..."}
-                rows={1}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-              />
+        try {
+            // 使用你的 axios 实例发送 POST 请求
+            // axios 默认会将第二个参数转换为 JSON，并自动带上 application/json 头
+            const res = await api.post('/chat', {
+                prompt: userText,
+                use_rag: useRag,
+                session_id: currentSessionId // 将当前的会话 ID 发给后端
+            });
+            
+            const data = res.data;
+            
+            if (data.status === 'success') {
+                setMessages(prev => [...prev, { role: 'model', content: data.reply }]);
+                
+                // 如果这是一个新对话，后端会返回新生成的 session_id
+                if (data.session_id && currentSessionId !== data.session_id) {
+                    setCurrentSessionId(data.session_id);
+                    fetchSessions(); // 刷新左侧会话列表以显示新对话
+                }
+            } else {
+                setMessages(prev => [...prev, { role: 'model', content: '请求出错: ' + data.message }]);
+            }
+        } catch (error) {
+            console.error("发送消息出错:", error);
+            setMessages(prev => [...prev, { role: 'model', content: '网络错误，请稍后再试。' }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+            {/* 左侧边栏 - 会话列表 */}
+            <div className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
+                <div className="p-4 border-b border-gray-200">
+                    <button 
+                        onClick={handleNewSession}
+                        className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
+                    >
+                        <span>+ 新建对话</span>
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    {sessions.length === 0 && (
+                        <div className="text-center text-gray-400 mt-4 text-sm">暂无历史对话</div>
+                    )}
+                    {sessions.map(s => (
+                        <div 
+                            key={s.id} 
+                            onClick={() => loadSession(s.id)}
+                            className={`p-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 text-sm truncate transition
+                                ${currentSessionId === s.id ? 'bg-blue-50 border-l-4 border-l-blue-600 text-blue-800 font-medium' : 'text-gray-600'}`}
+                        >
+                            {s.title}
+                        </div>
+                    ))}
+                </div>
             </div>
-            <button 
-              onClick={handleSendMessage}
-              disabled={!inputText.trim() || isLoading}
-              className="h-[56px] px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl cursor-pointer font-medium transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Send className="w-5 h-5" />
-              <span className="hidden sm:inline">发送</span>
-            </button>
-          </div>
+
+            {/* 右侧 - 聊天主区域 */}
+            <div className="flex-1 flex flex-col">
+                {/* 顶部控制栏 */}
+                <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10">
+                    <h2 className="font-semibold text-gray-800">
+                        {currentSessionId ? "历史对话" : "新对话"}
+                    </h2>
+                    <label className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 transition">
+                        <input 
+                            type="checkbox" 
+                            checked={useRag} 
+                            onChange={(e) => setUseRag(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                        />
+                        <span className="text-sm font-medium text-gray-700">启用知识库增强 (RAG)</span>
+                    </label>
+                </div>
+
+                {/* 消息展示区 */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                            <div className="text-5xl">👋</div>
+                            <p>开始一次新的 AI 对话吧！</p>
+                        </div>
+                    ) : (
+                        messages.map((msg, idx) => (
+                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm ${
+                                    msg.role === 'user' 
+                                    ? 'bg-blue-600 text-white rounded-br-none' 
+                                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                                }`}>
+                                    <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed">
+                                        {msg.content}
+                                    </pre>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                    
+                    {/* 加载中的骨架动画 */}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-white border border-gray-200 p-4 rounded-2xl rounded-bl-none shadow-sm flex space-x-2 items-center">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* 底部输入区 */}
+                <div className="p-4 bg-white border-t border-gray-200">
+                    <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex space-x-4">
+                        <input 
+                            type="text" 
+                            value={input} 
+                            onChange={(e) => setInput(e.target.value)} 
+                            placeholder="输入你想问的问题..." 
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                        />
+                        <button 
+                            type="submit" 
+                            disabled={isLoading || !input.trim()}
+                            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                            发送
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
-}
+    );
+};
+
+export default UserDashboard;
