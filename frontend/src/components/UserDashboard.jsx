@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../utils/authFetch.js';// 引入 axios 实例
+import { Trash2 } from 'lucide-react'; // 引入删除图标
+import api from '../utils/authFetch.js'; // 引入 axios 实例
 
 const UserDashboard = () => {
     const [messages, setMessages] = useState([]);
@@ -69,6 +70,33 @@ const UserDashboard = () => {
         setMessages([]);
     };
 
+    // 删除历史对话
+    const handleDeleteSession = async (e, sessionId) => {
+        e.stopPropagation(); // 阻止事件冒泡，避免点击删除时触发加载对话的 onClick
+
+        if (!window.confirm("确定要删除此历史对话吗？删除后将无法恢复。")) {
+            return;
+        }
+
+        try {
+            const res = await api.delete(`/history/sessions/${sessionId}`);
+            if (res.data.status === 'success') {
+                // 前端状态中移除被删除的会话
+                setSessions(prev => prev.filter(s => s.id !== sessionId));
+                
+                // 如果删除的是当前正在查看的会话，则重置回“新对话”状态
+                if (currentSessionId === sessionId) {
+                    handleNewSession();
+                }
+            } else {
+                alert(`删除失败: ${res.data.message}`);
+            }
+        } catch (error) {
+            console.error("删除会话出错:", error);
+            alert("网络错误，删除失败，请稍后再试。");
+        }
+    };
+
     // 发送消息
     const handleSendMessage = async (e) => {
         e?.preventDefault();
@@ -131,10 +159,17 @@ const UserDashboard = () => {
                         <div 
                             key={s.id} 
                             onClick={() => loadSession(s.id)}
-                            className={`p-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 text-sm truncate transition
-                                ${currentSessionId === s.id ? 'bg-blue-50 border-l-4 border-l-blue-600 text-blue-800 font-medium' : 'text-gray-600'}`}
+                            className={`group flex items-center justify-between p-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 text-sm transition
+                                ${currentSessionId === s.id ? 'bg-blue-50 border-l-4 border-l-blue-600 text-blue-800 font-medium' : 'text-gray-600 border-l-4 border-transparent'}`}
                         >
-                            {s.title}
+                            <span className="truncate pr-2">{s.title}</span>
+                            <button
+                                onClick={(e) => handleDeleteSession(e, s.id)}
+                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-all flex-shrink-0"
+                                title="删除此对话"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
                         </div>
                     ))}
                 </div>

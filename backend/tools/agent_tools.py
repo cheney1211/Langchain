@@ -70,10 +70,10 @@ def get_agent_executor(use_rag: bool = False):
     """
     初始化并返回新的 LangGraph Agent。
     """
-    # 阿里云 DashScope (qwen3.5-plus)
+    # 阿里云 DashScope 
     llm = ChatOpenAI(
         temperature=0,
-        model="qwen3.5-plus", 
+        model="qwen3.5-flash", 
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"  
     )
