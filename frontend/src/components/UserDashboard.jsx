@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2 } from 'lucide-react'; // 引入删除图标
-import api from '../utils/authFetch.js'; // 引入 axios 实例
+import { Trash2, Bot, User, Plus, MessageSquare, Search, Send } from 'lucide-react';
+import api from '../utils/authFetch.js';
 
 const UserDashboard = () => {
     const [messages, setMessages] = useState([]);
@@ -140,32 +140,37 @@ const UserDashboard = () => {
     };
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+        <div className="flex h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-50 to-blue-50/30">
             {/* 左侧边栏 - 会话列表 */}
-            <div className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
-                <div className="p-4 border-b border-gray-200">
-                    <button 
+            <div className="w-72 bg-gradient-to-b from-slate-50 to-white border-r border-gray-200/60 flex flex-col hidden md:flex shadow-inner">
+                <div className="p-4 border-b border-gray-200/60 bg-white/50 backdrop-blur-sm">
+                    <button
                         onClick={handleNewSession}
-                        className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 transition-all font-medium active:translate-y-0 cursor-pointer"
                     >
-                        <span>+ 新建对话</span>
+                        <Plus className="w-4 h-4" /> 新建对话
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto py-2">
                     {sessions.length === 0 && (
-                        <div className="text-center text-gray-400 mt-4 text-sm">暂无历史对话</div>
+                        <div className="text-center py-12 px-4">
+                            <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-400 text-sm">暂无历史对话</p>
+                        </div>
                     )}
                     {sessions.map(s => (
-                        <div 
-                            key={s.id} 
+                        <div
+                            key={s.id}
                             onClick={() => loadSession(s.id)}
-                            className={`group flex items-center justify-between p-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 text-sm transition
-                                ${currentSessionId === s.id ? 'bg-blue-50 border-l-4 border-l-blue-600 text-blue-800 font-medium' : 'text-gray-600 border-l-4 border-transparent'}`}
+                            className={`group flex items-center justify-between px-4 py-3 mx-2 rounded-xl cursor-pointer border transition-all
+                                ${currentSessionId === s.id
+                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-800 shadow-sm'
+                                    : 'border-transparent hover:bg-gray-50 text-gray-600'}`}
                         >
-                            <span className="truncate pr-2">{s.title}</span>
+                            <span className="truncate pr-2 text-sm">{s.title}</span>
                             <button
                                 onClick={(e) => handleDeleteSession(e, s.id)}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-all flex-shrink-0"
+                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all flex-shrink-0"
                                 title="删除此对话"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -178,51 +183,84 @@ const UserDashboard = () => {
             {/* 右侧 - 聊天主区域 */}
             <div className="flex-1 flex flex-col">
                 {/* 顶部控制栏 */}
-                <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10">
-                    <h2 className="font-semibold text-gray-800">
+                <div className="px-6 py-3 border-b border-gray-200/60 bg-white/60 backdrop-blur-sm flex justify-between items-center shadow-sm z-10">
+                    <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-blue-500" />
                         {currentSessionId ? "历史对话" : "新对话"}
                     </h2>
-                    <label className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 transition">
-                        <input 
-                            type="checkbox" 
-                            checked={useRag} 
-                            onChange={(e) => setUseRag(e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        />
-                        <span className="text-sm font-medium text-gray-700">启用知识库增强 (RAG)</span>
+                    <label className="flex items-center gap-2.5 cursor-pointer bg-gradient-to-r from-gray-50 to-white px-4 py-2 rounded-full border border-gray-200/60 hover:border-blue-200 hover:shadow-sm transition-all">
+                        <div className={`w-9 h-5 rounded-full transition-colors relative ${useRag ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gray-300'}`}>
+                            <input
+                                type="checkbox"
+                                checked={useRag}
+                                onChange={(e) => setUseRag(e.target.checked)}
+                                className="sr-only"
+                            />
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${useRag ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                        </div>
+                        <Search className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">知识库增强 (RAG)</span>
                     </label>
                 </div>
 
                 {/* 消息展示区 */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
                     {messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-                            <div className="text-5xl">👋</div>
-                            <p>开始一次新的 AI 对话吧！</p>
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-6 animate-fade-in">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-2xl animate-pulse-ring"></div>
+                                <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full p-6 shadow-lg shadow-blue-500/20">
+                                    <Bot className="w-12 h-12 text-white" />
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xl font-semibold text-gray-700 mb-2">你好，有什么我可以帮你的？</p>
+                                <p className="text-sm text-gray-400">开启 RAG 模式可使用本地知识库，但将无法联网</p>
+                            </div>
                         </div>
                     ) : (
                         messages.map((msg, idx) => (
-                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm ${
-                                    msg.role === 'user' 
-                                    ? 'bg-blue-600 text-white rounded-br-none' 
-                                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
-                                }`}>
-                                    <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed">
-                                        {msg.content}
-                                    </pre>
+                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+                                <div className={`flex gap-3 max-w-[85%] md:max-w-[70%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                                    {/* Avatar */}
+                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${
+                                        msg.role === 'user'
+                                            ? 'bg-gradient-to-br from-gray-500 to-gray-600'
+                                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                    }`}>
+                                        {msg.role === 'user' ? (
+                                            <User className="w-4 h-4 text-white" />
+                                        ) : (
+                                            <Bot className="w-4 h-4 text-white" />
+                                        )}
+                                    </div>
+                                    {/* Message bubble */}
+                                    <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                                        msg.role === 'user'
+                                            ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-br-md'
+                                            : 'bg-white border border-gray-200/60 text-gray-800 rounded-bl-md'
+                                    }`}>
+                                        <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed bg-transparent">
+                                            {msg.content}
+                                        </pre>
+                                    </div>
                                 </div>
                             </div>
                         ))
                     )}
-                    
-                    {/* 加载中的骨架动画 */}
+
+                    {/* 加载中的动画 */}
                     {isLoading && (
-                        <div className="flex justify-start">
-                            <div className="bg-white border border-gray-200 p-4 rounded-2xl rounded-bl-none shadow-sm flex space-x-2 items-center">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                        <div className="flex justify-start animate-slide-up">
+                            <div className="flex gap-3">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm">
+                                    <Bot className="w-4 h-4 text-white animate-pulse" />
+                                </div>
+                                <div className="bg-white border border-gray-200/60 px-5 py-4 rounded-2xl rounded-bl-md shadow-sm flex items-center space-x-2">
+                                    <div className="w-2.5 h-2.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce"></div>
+                                    <div className="w-2.5 h-2.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></div>
+                                    <div className="w-2.5 h-2.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -230,20 +268,21 @@ const UserDashboard = () => {
                 </div>
 
                 {/* 底部输入区 */}
-                <div className="p-4 bg-white border-t border-gray-200">
-                    <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex space-x-4">
-                        <input 
-                            type="text" 
-                            value={input} 
-                            onChange={(e) => setInput(e.target.value)} 
-                            placeholder="输入你想问的问题..." 
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                <div className="p-4 md:p-6 bg-white/80 backdrop-blur-sm border-t border-gray-200/60">
+                    <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex gap-3">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="输入你想问的问题..."
+                            className="flex-1 px-5 py-3.5 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 shadow-sm bg-white/80 backdrop-blur-sm text-gray-800 placeholder-gray-400 transition-all"
                         />
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={isLoading || !input.trim()}
-                            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition shadow-sm"
+                            className="px-6 py-3.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium rounded-2xl hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg hover:shadow-blue-500/20 disabled:from-blue-300 disabled:to-indigo-300 disabled:shadow-none disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer flex items-center gap-2"
                         >
+                            <Send className="w-4 h-4" />
                             发送
                         </button>
                     </form>

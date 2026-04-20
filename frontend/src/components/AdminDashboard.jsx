@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2, Users } from 'lucide-react';
-import api from '../utils/authFetch'; // 引入 axios 实例
+import { Shield, Search, Globe, Settings, CheckCircle2, Bot, User, UploadCloud, FileText, Trash2, Loader2, Users, BarChart3, Database, KeyRound, ChevronRight } from 'lucide-react';
+import api from '../utils/authFetch';
 
 export default function AdminDashboard({ currentUser }) {
   const [activeTab, setActiveTab] = useState('search'); 
@@ -166,74 +166,130 @@ export default function AdminDashboard({ currentUser }) {
     }
   };
 
+  const tabConfig = [
+    { id: 'search', icon: Search, label: '搜索工具配置', description: '配置联网搜索引擎' },
+    { id: 'rag', icon: Database, label: '知识库 (RAG)', description: '管理本地文档' },
+    { id: 'users', icon: Users, label: '用户管理', description: '账号与权限管理' },
+  ];
+
   return (
-   <div className="p-8 max-w-5xl mx-auto">
-      <div className="mb-8">
+   <div className="p-6 lg:p-10 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8 animate-fade-in">
         <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Shield className="w-8 h-8 text-blue-600" />
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-500/20 rounded-xl blur-lg"></div>
+            <Shield className="w-8 h-8 text-blue-600 relative" />
+          </div>
           管理员控制台
         </h2>
-        <p className="text-gray-500 mt-2">管理系统级配置、大模型联网工具选项、本地知识库以及账号管理。</p>
+        <p className="text-gray-500 mt-2 text-sm">管理系统级配置、大模型联网工具选项、本地知识库以及账号管理。</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="col-span-1 space-y-2">
-          <button 
-            onClick={() => setActiveTab('search')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'search' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <Search className="w-5 h-5" /> 搜索工具配置
-          </button>
-          <button 
-            onClick={() => setActiveTab('rag')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'rag' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <Bot className="w-5 h-5" /> 知识库 (RAG)
-          </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-xl transition-colors cursor-pointer ${activeTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <Users className="w-5 h-5" /> 用户管理
-          </button>
+      {/* Stats cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-slide-up">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+              <Globe className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-500">搜索引擎</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 capitalize">{provider}</p>
+        </div>
+        <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center">
+              <Database className="w-5 h-5 text-violet-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-500">知识库文档</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{kbFiles.length} 篇</p>
+        </div>
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-amber-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-500">注册用户</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{users.length} 人</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left sidebar navigation */}
+        <div className="col-span-1 space-y-1">
+          {tabConfig.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === tab.id
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md shadow-blue-500/20'
+                  : 'text-gray-600 hover:bg-gray-100/80'
+              }`}
+            >
+              <tab.icon className="w-5 h-5 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-sm">{tab.label}</span>
+                <span className={`block text-xs ${activeTab === tab.id ? 'text-blue-100' : 'text-gray-400'}`}>{tab.description}</span>
+              </div>
+              <ChevronRight className={`w-4 h-4 ml-auto transition-transform ${activeTab === tab.id ? 'translate-x-0' : '-translate-x-1 opacity-0'}`} />
+            </button>
+          ))}
         </div>
 
+        {/* Content area */}
         <div className="col-span-1 lg:col-span-3">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden min-h-[400px]">
+            {/* Toast notification */}
             {saveStatus && (
-              <div className="m-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2 border border-green-100">
-                <CheckCircle2 className="w-5 h-5" />
+              <div className="m-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-xl flex items-center gap-2 border border-emerald-200 animate-slide-up">
+                <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                 {saveStatus}
               </div>
             )}
 
             {activeTab === 'search' && (
               <>
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Globe className="w-5 h-5 text-gray-500" />
-                    大模型 Agent 搜索引擎切换
-                  </h3>
+                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold text-gray-800">大模型 Agent 搜索引擎切换</h3>
                 </div>
                 <div className="p-6">
                   <form onSubmit={handleSaveConfig} className="space-y-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">当前启用的网络搜索节点</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-4">当前启用的网络搜索节点</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${provider === 'serpapi' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}`}>
+                        <label className={`cursor-pointer border-2 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-md ${
+                          provider === 'serpapi'
+                            ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-md shadow-blue-500/10'
+                            : 'border-gray-200 hover:border-blue-200 bg-white'
+                        }`}>
                           <input type="radio" name="searchProvider" className="sr-only" value="serpapi" checked={provider === 'serpapi'} onChange={(e) => setProvider(e.target.value)} />
-                          <span className="font-bold text-lg">SerpAPI</span>
-                          <span className="text-xs opacity-70">Google 搜索代理核心</span>
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${provider === 'serpapi' ? 'bg-blue-500/20' : 'bg-gray-100'}`}>
+                            <Search className={`w-7 h-7 ${provider === 'serpapi' ? 'text-blue-600' : 'text-gray-400'}`} />
+                          </div>
+                          <span className="font-bold text-xl">SerpAPI</span>
+                          <span className="text-xs opacity-60 text-center">Google 搜索代理核心</span>
                         </label>
-                        <label className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${provider === 'tavily' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}`}>
+                        <label className={`cursor-pointer border-2 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-md ${
+                          provider === 'tavily'
+                            ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-md shadow-blue-500/10'
+                            : 'border-gray-200 hover:border-blue-200 bg-white'
+                        }`}>
                           <input type="radio" name="searchProvider" className="sr-only" value="tavily" checked={provider === 'tavily'} onChange={(e) => setProvider(e.target.value)} />
-                          <span className="font-bold text-lg">Tavily</span>
-                          <span className="text-xs opacity-70">AI 专用的高级搜索引擎</span>
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${provider === 'tavily' ? 'bg-blue-500/20' : 'bg-gray-100'}`}>
+                            <Globe className={`w-7 h-7 ${provider === 'tavily' ? 'text-blue-600' : 'text-gray-400'}`} />
+                          </div>
+                          <span className="font-bold text-xl">Tavily</span>
+                          <span className="text-xs opacity-60 text-center">AI 专用的高级搜索引擎</span>
                         </label>
                       </div>
                     </div>
                     <div className="pt-4 border-t border-gray-100 flex justify-end">
-                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg cursor-pointer transition-colors flex items-center gap-2">
+                      <button type="submit" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium py-2.5 px-6 rounded-xl cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
                         <Settings className="w-4 h-4" /> 保存配置并生效
                       </button>
                     </div>
@@ -244,14 +300,12 @@ export default function AdminDashboard({ currentUser }) {
 
             {activeTab === 'rag' && (
               <>
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-gray-500" />
-                    本地知识库文件管理
-                  </h3>
+                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold text-gray-800">本地知识库文件管理</h3>
                 </div>
                 <div className="p-6 space-y-6">
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-b from-gray-50 to-white hover:from-blue-50/50 hover:to-indigo-50/30 hover:border-blue-400 transition-all">
                     {isUploading ? (
                       <div className="flex flex-col items-center text-blue-600">
                         <Loader2 className="w-10 h-10 animate-spin mb-3" />
@@ -259,9 +313,12 @@ export default function AdminDashboard({ currentUser }) {
                       </div>
                     ) : (
                       <>
-                        <UploadCloud className="w-10 h-10 text-gray-400 mb-3" />
-                        <h4 className="text-gray-800 font-medium mb-1">将文档上传到知识库</h4>
-                        <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-lg transition-colors mt-2">
+                        <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-3">
+                          <UploadCloud className="w-7 h-7 text-blue-500" />
+                        </div>
+                        <h4 className="text-gray-800 font-semibold mb-1">将文档上传到知识库</h4>
+                        <p className="text-xs text-gray-400 mb-4">支持 PDF, TXT, MD, DOCX, XLSX, PPTX, CSV 等格式</p>
+                        <label className="cursor-pointer bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium py-2.5 px-6 rounded-xl transition-all hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0">
                           选择文件并上传
                           <input type="file" accept=".pdf,.txt,.md,.docx,.xlsx,.xls,.pptx,.csv,.py,.js,.html,.css" className="hidden" onChange={handleFileUpload} />
                         </label>
@@ -269,20 +326,23 @@ export default function AdminDashboard({ currentUser }) {
                     )}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-3 flex justify-between items-center">
-                      <span>已上传的文档 ({kbFiles.length})</span>
+                    <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <Database className="w-4 h-4 text-gray-400" />
+                      已上传的文档 ({kbFiles.length})
                     </h4>
                     {kbFiles.length === 0 ? (
-                      <div className="text-center py-6 text-gray-500 text-sm border border-gray-100 rounded-xl bg-gray-50">
+                      <div className="text-center py-8 text-gray-400 text-sm border border-gray-100 rounded-xl bg-gray-50/50">
                         当前知识库为空，暂无文档。
                       </div>
                     ) : (
-                      <ul className="space-y-3">
+                      <ul className="space-y-2">
                         {kbFiles.map((filename, idx) => (
-                          <li key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-300 transition-colors">
+                          <li key={idx} className="flex justify-between items-center p-3 border border-gray-100 rounded-xl bg-white hover:border-blue-200 hover:shadow-sm transition-all">
                             <div className="flex items-center gap-3">
-                              <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                              <span className="text-sm font-medium text-gray-700 truncate">{filename}</span>
+                              <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+                                <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{filename}</span>
                             </div>
                             <button onClick={() => handleDeleteFile(filename)} className="p-2 cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                           </li>
@@ -296,57 +356,64 @@ export default function AdminDashboard({ currentUser }) {
 
             {activeTab === 'users' && (
               <>
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex justify-between items-center">
+                  <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-gray-500" />
-                    账号与权限管理
-                  </h3>
-                  <button onClick={fetchUsers} className="text-sm cursor-pointer font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors">
-                    刷新列表
+                    <h3 className="text-lg font-semibold text-gray-800">账号与权限管理</h3>
+                  </div>
+                  <button onClick={fetchUsers} className="text-sm cursor-pointer font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5" /> 刷新列表
                   </button>
                 </div>
                 <div className="p-6">
                   {isLoadingUsers ? (
                     <div className="flex justify-center items-center py-12 text-blue-600"><Loader2 className="w-8 h-8 animate-spin" /></div>
                   ) : (
-                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                    <div className="overflow-x-auto border border-gray-200/60 rounded-2xl shadow-sm">
                       <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50">
                           <tr className="border-b border-gray-200 text-sm text-gray-500">
-                            <th className="px-6 py-3 font-medium">账号ID</th>
-                            <th className="px-6 py-3 font-medium">用户名</th>
-                            <th className="px-6 py-3 font-medium">角色权限</th>
-                            <th className="px-6 py-3 font-medium text-right">操作</th>
+                            <th className="px-6 py-3.5 font-semibold">账号ID</th>
+                            <th className="px-6 py-3.5 font-semibold">用户名</th>
+                            <th className="px-6 py-3.5 font-semibold">角色权限</th>
+                            <th className="px-6 py-3.5 font-semibold text-right">操作</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {users.length > 0 ? users.map((user) => (
-                            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 text-sm text-gray-500">#{user.id}</td>
-                              <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.username}</td>
+                          {users.length > 0 ? users.map((user, idx) => (
+                            <tr key={user.id} className={`transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-blue-50/50`}>
+                              <td className="px-6 py-4 text-sm text-gray-400 font-mono">#{user.id}</td>
+                              <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                    <User className="w-3.5 h-3.5 text-gray-500" />
+                                  </div>
+                                  {user.username}
+                                </div>
+                              </td>
                               <td className="px-6 py-4 text-sm">
-                                <select 
-                                  value={user.role} 
+                                <select
+                                  value={user.role}
                                   onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
                                   disabled={currentUser?.username === user.username}
-                                  className="bg-white border border-gray-300 text-gray-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 disabled:bg-gray-100"
+                                  className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                 >
-                                  <option value="user">普通用户 (User)</option>
-                                  <option value="admin">管理员 (Admin)</option>
+                                  <option value="user">普通用户</option>
+                                  <option value="admin">管理员</option>
                                 </select>
                               </td>
                               <td className="px-6 py-4 text-right">
-                                <button 
+                                <button
                                   onClick={() => handleDeleteUser(user.id, user.username)}
                                   disabled={currentUser?.username === user.username}
-                                  className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-red-50"
+                                  className="text-red-400 hover:text-red-600 hover:bg-red-50 disabled:text-gray-300 disabled:cursor-not-allowed p-2 rounded-lg transition-colors inline-flex"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </td>
                             </tr>
                           )) : (
-                            <tr><td colSpan="5" className="text-center py-8 text-gray-500">暂无数据</td></tr>
+                            <tr><td colSpan="4" className="text-center py-8 text-gray-400">暂无数据</td></tr>
                           )}
                         </tbody>
                       </table>
